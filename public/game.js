@@ -397,7 +397,7 @@ class Player {
     this.h = h;
     this.debug = false;
     this.angle = 0;
-    this.cooldownTime = 200;
+    this.cooldownTime = 300;
     this.cooldown = 0;
     this.life = 100;
     this.shield = 40;
