@@ -48,6 +48,6 @@ setInterval(() => {
     io.emit("update_users", {users: USERS})
 }, 40);
 
-server.listen(3000, () => {
+server.listen(process.env.PORT ? process.env.PORT : 3000, () => {
     console.log('listening on *:3000');
 });
