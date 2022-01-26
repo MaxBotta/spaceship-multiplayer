@@ -156,7 +156,7 @@ function startGame() {
     //UPDATE INTERVAL
     setInterval(() => {
       updatePlayer();
-    }, 50);
+    }, 40);
   }
 }
 
