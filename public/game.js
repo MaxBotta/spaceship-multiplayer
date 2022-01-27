@@ -3,6 +3,12 @@ let bullets = [];
 let asteroids = [];
 let planets = [];
 let minerals = [];
+let stars = [];
+
+let teams = {
+  red: 0,
+  blue: 0
+}
 
 let points = 0;
 let gameIsRunning = false;
@@ -43,7 +49,16 @@ socket.on("connect", () => {
   socket.on("existing_users", (msg) => {
     for (let u of msg.users) {
       if (u.id !== player.id) {
-        let newUser = new User({ username: u.username, id: u.id, x: u.x, y: u.y, angle: u.angle, life: u.life, hide: u.hide });
+        let newUser = new User({
+          username: u.username,
+          team: u.team,
+          id: u.id,
+          x: u.x,
+          y: u.y,
+          angle: u.angle,
+          life: u.life,
+          hide: u.hide
+        });
         users.push(newUser);
         console.log(`New user "${newUser.username}" has joined the game`);
       }
@@ -53,7 +68,16 @@ socket.on("connect", () => {
   socket.on("add_new_user", (msg) => {
     let u = msg.user;
     if (u.id !== player.id) {
-      let newUser = new User({ username: u.username, id: u.id, x: u.x, y: u.y, angle: u.angle, life: u.life, hide: u.hide });
+      let newUser = new User({
+        username: u.username,
+        team: u.team,
+        id: u.id,
+        x: u.x,
+        y: u.y,
+        angle: u.angle,
+        life: u.life,
+        hide: u.hide
+      });
       users.push(newUser);
     }
   })
@@ -63,6 +87,11 @@ socket.on("connect", () => {
     console.log(`User has left the game`);
 
   });
+
+  socket.on("update_teams", (msg) => {
+    console.log(msg.teams)
+    teams = msg.teams;
+  })
 
   socket.on("create_bullet", (msg) => {
     let b = msg.bullet;
@@ -84,6 +113,7 @@ function updatePlayer() {
   socket.emit("update_player", {
     user: {
       username: player.username,
+      team: player.team,
       id: player.id,
       x: player.x,
       y: player.y,
@@ -115,11 +145,14 @@ function startGame() {
   let username = document.getElementById("username").value;
   if (username !== "") {
 
-    player = new Player({ username: username, id: String(socket.id) });
+    player = new Player({ username: username, team: getTeam(), id: String(socket.id) });
+
+    console.log(player);
 
     socket.emit("new_user_connected", {
       user: {
         username: player.username,
+        team: player.team,
         id: player.id,
         x: player.x,
         y: player.y,
@@ -143,7 +176,6 @@ function startGame() {
               localUser.life = onlineUser.life;
               localUser.shield = onlineUser.shield;
               localUser.hide = onlineUser.hide;
-
             }
           }
         }
@@ -167,8 +199,37 @@ startButton.addEventListener("click", () => {
 
 /////////////
 
+function getTeam() {
+  let red = 0;
+  let blue = 0;
+  if (users.length === 0) {
+    let t = ["red", "blue"];
+    return t[parseInt(random(0, 2))];
+  } else {
+    for (let u of users) {
+      if (u.team === "red") {
+        red++;
+      } else if (u.team === "blue") {
+        blue++;
+      }
+    }
+    if (red > blue) {
+      return "blue";
+    } else if (blue > red) {
+      return "red";
+    } else if (red === blue) {
+      let t = ["red", "blue"];
+      return t[parseInt(random(0, 2))];
+    }
+  }
+
+}
+
 function preload() {
-  playerImg = loadImage('./assets/PNG/playerShip1_blue.png');
+  playerImg = {
+    red: loadImage('./assets/PNG/playerShip1_red.png'),
+    blue: loadImage('./assets/PNG/playerShip1_blue.png')
+  }
   bulletImg = loadImage('./assets/PNG/Lasers/laserBlue01.png');
   mineralImg = loadImage('./assets/PNG/mineral.png');
   rocketImg = loadImage('./assets/PNG/Parts/gun08.png');
@@ -187,8 +248,14 @@ function preload() {
 function setup() {
   createCanvas(screenW, screenH);
   imageMode(CENTER);
-  // rectMode(CENTER)
+  rectMode(CENTER)
   angleMode(DEGREES);
+
+  //CREATE RANDOM STARS
+  for (let i = 0; i < 1000; i++) {
+    let newStar = new Star({ x: parseInt(random(-4000, 4000)), y: parseInt(random(-4000, 4000)) });
+    stars.push(newStar);
+  }
 
 
   //CREATE RANDOM ASTEROIDS
@@ -216,6 +283,11 @@ function draw() {
   if (gameIsRunning) {
 
     background(0);
+
+    //DRAW STARS
+    for (let s of stars) {
+      s.draw();
+    }
 
     // CAMERA FOLLOWS PLAYER
     camera.position.x = player.x;
@@ -309,8 +381,8 @@ function draw() {
         // }
 
         // asteroids.splice(asteroids.indexOf(a), 1);
-        a.speed = player.velocity / (a.size*2 + 1);
-        a.angle = player.angle;
+        // a.speed = player.velocity / (a.size * 2 + 1);
+        // a.angle = player.angle;
         player.velocity = -(player.velocity / 10) - 6;
       }
     }
@@ -338,7 +410,8 @@ function draw() {
     stroke("rgb(0,0,255)");
     fill("rgba(0,0,255, 0.2)")
     circle(120, screenH - 120, 200);
-    strokeWeight(4);
+    strokeWeight(2);
+    stroke(player.team);
     point(map(player.x, -4000, 4000, 20, 220), map(player.y, 4000, -4000, (screenH - 20), (screenH - 220)));
 
     //Draw asteroids on map
@@ -356,7 +429,7 @@ function draw() {
     // //DRAW OTHER USERS
     for (let u of users) {
       strokeWeight(2);
-      stroke("rgb(255, 0, 0)");
+      stroke(u.team);
       point(map(u.x, -4000, 4000, 20, 220), map(u.y, 4000, -4000, (screenH - 20), (screenH - 220)));
     }
     //////////////////////////
@@ -365,12 +438,14 @@ function draw() {
     strokeWeight(1);
     fill(255);
     textSize(20);
-    text("POINTS: " + points, 10, 25);
-    text("LIFE: " + player.life, 160, 25);
-    text("SHIELD: " + parseInt(player.shield), 300, 25);
-    text("ASTEROIDS: " + asteroids.length, 440, 25);
-    text("BULLETS: " + bullets.length, 640, 25);
-    text("MINERALS: " + player.minerals.length, 800, 25);
+    // text("POINTS: " + points, 10, 25);
+    // text("LIFE: " + player.life, 160, 25);
+    // text("SHIELD: " + parseInt(player.shield), 300, 25);
+    // text("ASTEROIDS: " + asteroids.length, 440, 25);
+    // text("BULLETS: " + bullets.length, 640, 25);
+    // text("MINERALS: " + player.minerals.length, 800, 25);
+    text("TEAM RED: " + teams.red, 10, 25);
+    text("TEAM BLUE: " + teams.red, 300, 25);
 
   }
 
@@ -387,15 +462,20 @@ function keyPressed() {
 }
 
 class Player {
-  constructor({ id, username, x = 0, y = 0, w = 60, h = 50 }) {
+  constructor({ id, team, username, x = 0, y = 0, w = 60, h = 50 }) {
     this.id = id;
+    this.team = team;
     this.username = username;
-    this.img = playerImg;
+    this.img = playerImg[team];
     this.x = x;
     this.y = y;
+    this.pos = createVector(x, y);
+    this.dir = createVector();
+    this.acc = createVector(0, -1);
+    this.vel = createVector(0, 0);
     this.w = w;
     this.h = h;
-    this.debug = false;
+    this.debug = true;
     this.angle = 0;
     this.cooldownTime = 300;
     this.cooldown = 0;
@@ -407,6 +487,8 @@ class Player {
     this.hide = false;
     this.minerals = [];
     this.credits = [];
+    this.rotAcceleration = 0.4;
+    this.rotVelocity = 0;
   }
 
   draw() {
@@ -414,6 +496,7 @@ class Player {
     if (this.life <= 0) {
       this.hide = true
       this.respawn();
+      socket.emit("add_team_point", {team: player.team === "blue" ? "red" : "blue"})
     }
 
     if (!this.hide) {
@@ -432,9 +515,7 @@ class Player {
         noFill();
         stroke(255, 204, 0);
         strokeWeight(2);
-        //rect(0, 0, 60, 50);
-
-        circle(0, 0, 100);
+        rect(this.x, this.y, this.w, this.h);
 
       }
 
@@ -450,22 +531,50 @@ class Player {
       }
 
       if (keyIsDown(LEFT_ARROW)) {
+        // this.rotVelocity -= this.rotAcceleration
         this.angle -= 6;
       }
       if (keyIsDown(RIGHT_ARROW)) {
+        // this.rotVelocity += this.rotAcceleration
         this.angle += 6;
       }
+      // this.angle += this.rotVelocity;
 
 
       this.shoot();
 
+      // this.pos = createVector(0, 0);
+      // // this.acc.setMag(this.acceleration);
+      // this.acc.x = cos(this.angle - 90);
+      // this.acc.y = sin(this.angle - 90);
+      // this.acc.setMag(this.acceleration);
+
+
 
       if (keyIsDown(UP_ARROW)) {
+        // this.vel.add(this.acc);
+
         this.velocity += this.acceleration;
+        // this.x = parseFloat((this.x + cos(this.angle - 90) * this.velocity).toFixed(2));
+        // this.y = parseFloat((this.y + sin(this.angle - 90) * this.velocity).toFixed(2));
       }
+
       if (keyIsDown(DOWN_ARROW)) {
+
+        // this.vel.sub(this.acc);
         this.velocity -= this.acceleration;
+        // this.x = parseFloat((this.x + cos(this.angle - 90) * this.velocity).toFixed(2));
+        // this.y = parseFloat((this.y + sin(this.angle - 90) * this.velocity).toFixed(2));
       }
+
+      // line(this.x, this.y, newX, newY);
+
+
+      // this.vel.limit(this.maxSpeed);
+      // this.pos.add(this.vel);
+
+      // this.y = this.y + this.pos.y;
+      // this.x = this.x + this.pos.x;
 
       //Limit forward and backward speed
       if (this.velocity <= -this.maxSpeed) {
@@ -483,12 +592,13 @@ class Player {
         }
       }
       if (this.velocity < 0) {
-        this.velocity += 0.3;
+        this.velocity += 0.4;
         if (this.velocity > 0) {
           this.velocity = 0;
         }
       }
 
+      rectMode(CENTER)
       // Draw name
       stroke(255, 255, 255);
       strokeWeight(1);
@@ -513,6 +623,7 @@ class Player {
       strokeWeight(1);
       stroke(255);
       rect(this.x, this.y - this.h + 12, 40, 4);
+      rectMode(LEFT)
 
       this.x = parseFloat((this.x + cos(this.angle - 90) * this.velocity).toFixed(2));
       this.y = parseFloat((this.y + sin(this.angle - 90) * this.velocity).toFixed(2));
@@ -554,10 +665,11 @@ class Player {
 }
 
 class User {
-  constructor({ username, id, x = screenW / 2, y = screenH / 2, w = 60, h = 50, angle = 0, hide = false }) {
+  constructor({ username, team, id, x = screenW / 2, y = screenH / 2, w = 60, h = 50, angle = 0, hide = false }) {
     this.id = id;
+    this.team = team;
     this.username = username;
-    this.img = playerImg;
+    this.img = playerImg[team];
     this.x = x;
     this.y = y;
     this.w = w;
@@ -629,7 +741,7 @@ class Bullet {
     this.h = 20;
     this.img = bulletImg;
     this.angle = angle
-    this.speed = 40;
+    this.speed = 60;
     this.lifetime = 300;
     this.damage = 10;
   }
@@ -660,7 +772,7 @@ class Bullet {
   }
 }
 
-class Rocket{
+class Rocket {
   constructor({ id, playerId, x, y, target }) {
     this.id = id;
     this.playerId = playerId;
@@ -710,21 +822,26 @@ class Asteroid {
     this.size = size;
     this.speed = speed;
     this.img = asteroidImages[size];
-    this.w = size * 60 + 30;
-    this.h = size * 60 + 30;
+    this.w = size * 30 + 20;
+    this.h = size * 30 + 20;
     this.angle = angle;
     this.life = size * 20 + 20;
   }
 
   draw() {
-    // stroke(255, 204, 0);
-    // strokeWeight(2);
-    // noFill();
-    // // rect(this.x, this.y, this.w, this.h);
+    rectMode(CORNER);
+    imageMode(CORNER);
+    stroke(255, 204, 0);
+    strokeWeight(2);
+    noFill();
+    rect(this.x, this.y, this.w, this.h);
     // // translate(this.x, this.y);
     image(this.img, this.x, this.y);
     this.x += cos(this.angle - 90) * this.speed;
     this.y += sin(this.angle - 90) * this.speed;
+
+    stroke(255, 0, 0)
+    point(this.x, this.y);
 
 
     //Remove Asteroid if 
@@ -757,6 +874,23 @@ class Asteroid {
       asteroids.splice(asteroids.indexOf(this), 1);
     }
 
+    imageMode(CENTER);
+    rectMode(CENTER)
+  }
+
+}
+
+class Star {
+  constructor({ x, y }) {
+    this.x = x;
+    this.y = y;
+    this.size = parseInt(random(1, 4));
+  }
+
+  draw() {
+    stroke(255);
+    strokeWeight(this.size);
+    point(this.x, this.y);
   }
 }
 

@@ -12,6 +12,10 @@ app.get('/', function (req, res) {
 
 
 let USERS = [];
+let TEAMS = {
+    red: 0,
+    blue: 0
+};
 
 io.on('connection', (socket) => {
 
@@ -41,6 +45,12 @@ io.on('connection', (socket) => {
 
     socket.on("new_bullet", (msg) => {
         io.emit("create_bullet", msg);
+    })
+
+    socket.on("add_team_point", (msg) => {
+        TEAMS[msg.team]++;
+        console.log("team " + msg.team + " gets a point");
+        io.emit("update_teams", {teams: TEAMS});
     })
 });
 
