@@ -475,7 +475,7 @@ class Player {
     this.vel = createVector(0, 0);
     this.w = w;
     this.h = h;
-    this.debug = true;
+    this.debug = false;
     this.angle = 0;
     this.cooldownTime = 300;
     this.cooldown = 0;
@@ -834,7 +834,7 @@ class Asteroid {
     stroke(255, 204, 0);
     strokeWeight(2);
     noFill();
-    rect(this.x, this.y, this.w, this.h);
+    // rect(this.x, this.y, this.w, this.h);
     // // translate(this.x, this.y);
     image(this.img, this.x, this.y);
     this.x += cos(this.angle - 90) * this.speed;
